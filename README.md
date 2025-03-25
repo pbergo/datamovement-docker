@@ -22,10 +22,14 @@ The recommended approach for PS consultants during the project implementation is
 
 To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image.
 
-### Pulling docker image
+### Pulling Qlik Data Movement gateway docker image
+All the following commands must run using admin or sudo privilege.
+
 ```shell
-docker pull pedobergo/qlikdatamovement:latest
-´´´
+# Open shell (bash or powershell)
+docker pull pedrobergo/qlikdatamovement:latest
+```
+
 This docker image contains:
 a. Data Movement gateway installed version 2024.11.30
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake and Databricks
@@ -33,7 +37,7 @@ b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake and Databricks
 However, as Qlik Data Movement gateway must be linked with your tenant, some commands must be executed after starting a container.
 
 #### Steps to set up a Qlik Data Movement gateway in a container
-All the following commands must run using admin or sudo  privilege.
+All the following commands must run using admin or sudo privilege.
 ```shell
 # 1. Run Docker container.
 # Port is important if you want to connect QEM
@@ -79,7 +83,6 @@ docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/
 docker container exec -it container_name ps -ef
 ```
 <a id="upgrade"></a>
-
 ## Upgrading Qlik Data Movement
 
 To upgrade Qlik Data Movement, you can use the following steps
@@ -104,11 +107,11 @@ docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/
 docker container exec -it container_name ps -ef
 ```
 
-## Installing a new drivers
+## Installing new ODBC drivers
 
-You can install you own drivers versions, but unfortunately, the provided [docker image](#docker-image) don´t have Python installed, then you can´t use the Qlik scripts to perform any installation and must be all things using the old fashion way.
+You can install you own ODBC driver version, but unfortunately, the provided [docker image](#docker-image) don´t have Python installed, then you can´t use the Qlik scripts to perform any installation and all things must do using the old fashion way.
 
-The next steps shows to you how to install an IBM DB2 for iSeries ODBC driver.
+The next steps show to you how to install an IBM DB2 for iSeries ODBC driver.
 
 ```shell
 # 1. Copy the IBM DB2 driver to container
