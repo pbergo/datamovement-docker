@@ -22,6 +22,14 @@ The recommended approach for PS consultants during the project implementation is
 
 To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image.
 
+### Pulling docker image
+```shell
+docker pull pedobergo/qlikdatamovement:latest
+´´´
+This docker image contains:
+a. Data Movement gateway installed version 2024.11.30
+b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake and Databricks
+
 However, as Qlik Data Movement gateway must be linked with your tenant, some commands must be executed after starting a container.
 
 #### Steps to set up a Qlik Data Movement gateway in a container
