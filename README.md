@@ -33,6 +33,7 @@ docker pull pedrobergo/qlikdatamovement:latest
 This docker image contains:
 a. Data Movement gateway installed version 2024.11.30
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake and Databricks
+c. Guest OS: Oracle Linux 9
 
 However, as Qlik Data Movement gateway must be linked with your tenant, some commands must be executed after starting a container.
 
@@ -70,10 +71,11 @@ docker container exec -it container_name  ps -ef
 ```
 
 ## Starting and stopping the Data Movement services
-Every time the container stopped, you may restart the container and the service
+Every time you want to restart the Data Movement services; you may restart the container and then start the service
 
 ```shell
-# Start the container
+# Restart the container
+docker container stop container_name
 docker container start container_name
 
 # Start the Data Movement service
@@ -96,7 +98,7 @@ docker container start container_name
 # You don´t need to provide the password if it didn´t set up during installation
 docker container exec -it container_name su -c "QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes pass=password yum -y upgrade https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm"
 
-# Stop and Start the container
+# Restart the container
 docker container stop container_name
 docker container start container_name
 
