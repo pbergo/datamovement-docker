@@ -9,9 +9,9 @@ RUN rm -f /etc/odbcinst.ini
 RUN echo -e '#!/bin/bash\necho "Systemctl called with $@"' > /usr/bin/systemctl
 RUN chmod +x /usr/bin/systemctl
 
-#ENV DataMovementTenant tenant.us.qlikcloud.com
-#RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes pass=QlikDataMovement2025 yum -y install https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
-#RUN yum clean all
+#install qlik data movement gateway
+RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes pass=QlikDataMovement2025 yum -y install https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
+RUN yum clean all
 
 # Set starting point of a new container
 ENTRYPOINT tail -f /dev/null;
