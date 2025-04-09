@@ -1,26 +1,21 @@
 # Qlik Data Movement on Docker
 
-<a id="summary"></a>
 ## Summary
 
-- [License Summary](license)
-- [Disclaimer](disclaimer)
-- [Introduction](introduction)
-- [Docker image](dockerimage)
-    - [Pulling Qlik Data Movement gateway docker image](pullimage)
-    - [Build Qlik Data Movement Docker image](buildimage)
-- [Setup Container](setupcontainer)
-- [Starting and stopping the Data Movement services](startservice)
-- [Upgrading Qlik Data Movement](upgrade)
-- [Installing new ODBC drivers](odbcdriver)
-
-<a id="license"></a>
+- [License Summary](#license-summary)
+- [Disclaimer](#disclaimer)
+- [Introduction](#introduction)
+- [Docker image](#docker-image)
+    - [Pulling Qlik Data Movement gateway docker image](#pulling-qlik-data-movement-gateway-docker-image)
+    - [Build Qlik Data Movement Docker image](#build-qlik-data-movement-docker-image)
+- [Setup Container](#setup-container)
+- [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
+- [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
+- [Installing new ODBC drivers](#installing-new-odbc-drivers)
 
 ## License Summary
 
 This project is made available under a modified MIT license. See the [LICENSE](LICENSE) file.
-
-<a id="disclaimer"></a>
 
 ## Disclaimer
 
@@ -28,15 +23,12 @@ This project is made available under a modified MIT license. See the [LICENSE](L
 2. Contributions such as Issues, Pull Request and additional codes are welcomed.
 3. **Qlik Inc.** or **Qlik Support** has no affiliation with this project. The initial version was developed by [Pedro Bergo](https://www.linkedin.com/in/pedro-bergo/) who is currently employed as Qlik Data Integration Senior Implementation Consultant at Qlik Data Professional Services Team.
 
-<a id="introduction"></a>
-
 ## Introduction
 
 This document was created to provide details how to use Qlik Data Movement Gateway on Docker environment. The information here doesn´t intend to cover all aspects of Docker environments, flavours and tools provided by market, like Swarm, Kubernetes or AWS-EKS.
 
 The recommended approach for PS consultants during the project implementation is provide to customers basic information and artifacts (scripts and configuration files) to work with Docker, then it can be adapted to its own environments.
 
-<a id="dockerimage"></a>
 ## Docker image
 
 To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image or you can build your own image. 
@@ -57,8 +49,6 @@ b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iS
 c. Guest OS: Red Hat Linux 9
 
 Next step is [setup the container](setucontainer).
-
-<a id="buildimage"></a>
 
 ### Build Qlik Data Movement Docker image
 
@@ -93,8 +83,6 @@ docker build -t qdmg_image ./
 ```
 
 Next step is [setup the container](setucontainer).
-
-<a id="setupcontainer"></a>
 
 ## Setup Container
 
@@ -135,8 +123,6 @@ docker container exec -it qdmg_container  ps -ef
 
 ```
 
-<a id="startservice"></a>
-
 ## Starting and stopping the Data Movement services
 Every time you want to restart the Data Movement services; you may restart the container and then start the service
 
@@ -167,8 +153,6 @@ docker container restart qdmg_container
 # Start the Data Movement service
 docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 ```
-<a id="odbcdriver"></a>
-
 ## Installing new ODBC drivers
 
 You can install you own ODBC drivers version, and Qlik provided a script to install everything for you
