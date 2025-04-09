@@ -48,7 +48,7 @@ a. Data Movement gateway installed version 2024.11.30
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iSeries
 c. Guest OS: Red Hat Linux 9
 
-Next step is [setup the container](setucontainer).
+Next step is [setup the container](#setup-container).
 
 ### Build Qlik Data Movement Docker image
 
@@ -82,7 +82,7 @@ ENTRYPOINT ["/bin/sh", "-c", "tail -f /dev/null"]
 docker build -t qdmg_image ./
 ```
 
-Next step is [setup the container](setucontainer).
+Next step is [setup the container](#setup-container).
 
 ## Setup Container
 
@@ -167,6 +167,7 @@ Tip: You still can perform installation using the old fashion way.
     - Microsoft Azure for MySQL
     - MySQL
     - Percona Server for MySQL
+
 ```bash
 # 1. Perform the installation
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install mysql
@@ -184,6 +185,7 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
     - Amazon RDS for PostgreSQL
     - Microsoft Azure PostgreSQL
     - PostgreSQL
+
 ```bash
 # 1. Perform the installation
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install postgres
@@ -199,6 +201,7 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
     - Amazon RDS for Oracle
     - Oracle
     - Oracle Cloud
+
 ```bash
 # 1. Perform the installation
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install oracle
@@ -210,7 +213,7 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
 
 ---
 
-- **Amazon Redshift**
+**Amazon Redshift**
 
 ```bash
 # 1. Perform the installation
@@ -223,7 +226,8 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
 
 ---
 
-- **Databricks** (Needs yum)
+**Databricks**
+
 ```bash
 # 1. Perform the installation
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install databricks
@@ -235,7 +239,8 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
 
 ---
 
-- **Snowflake** (Needs yum)
+**Snowflake**
+
 ```bash
 # 1. Perform the installation
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install snowflake
@@ -262,7 +267,7 @@ docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/
 ```
 
 
-- **Fabric** (Needs yum)
+- **Fabric**
 
 ```bash
 docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install fabric
