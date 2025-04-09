@@ -20,115 +20,266 @@ The recommended approach for PS consultants during the project implementation is
 <a id="dockerimage"></a>
 ## Docker image
 
-To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image.
+To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image or you can build your own image. 
+
+For both approaches you might to link the Qlik Data Movement gateway with your tenant before put any task to run.
 
 ### Pulling Qlik Data Movement gateway docker image
 All the following commands must run using admin or sudo privilege.
 
-```shell
-# Open shell (bash or powershell)
+```bash
+# Open bash (bash or powerbash)
 docker pull pedrobergo/qlikdatamovement:latest
 ```
 
 This docker image contains:
 a. Data Movement gateway installed version 2024.11.30
-b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake and Databricks
-c. Guest OS: Oracle Linux 9
+b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iSeries
+c. Guest OS: Red Hat Linux 9
 
-However, as Qlik Data Movement gateway must be linked with your tenant, some commands must be executed after starting a container.
+Next step is [setup the container](setucontainer).
 
-#### Steps to set up a Qlik Data Movement gateway in a container
+### Build Qlik Data Movement Docker image
+
+If you want to build your own Docker image, please look the next information, remembering that you might to setup the tenant connection in a running container.
+
+**Dockerfile**
+Create a file named 'Dockerfile' container the following lines.
+```Dockerfile
+FROM registry.access.redhat.com/ubi9/ubi-minimal
+
+# Install required packages, mainly for installing drivers
+RUN microdnf -y update
+RUN microdnf install -y util-linux python3 dnf sudo tar yum
+
+# Fake systemctl so the installer can run
+RUN echo -e '#!/bin/bash\necho "Systemctl called with $@"' > /usr/bin/systemctl
+RUN chmod +x /usr/bin/systemctl
+
+# Download and install Data Movement Gateway
+RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
+
+# Remove temp microdnf files
+RUN microdnf clean all
+
+# Keep the container up
+ENTRYPOINT ["/bin/sh", "-c", "tail -f /dev/null"]
+```
+
+**Build the image from the Dockerfile. Needs to be run from the directory that contains the Dockerfile**
+```bash
+docker build -t qdmg_image ./
+```
+
+Next step is [setup the container](setucontainer).
+
+<a id="setupcontainer"></a>
+
+## Setup Container
+
+Prior to use Qlik Data Movement gateway, you must setup the container, linking it with your tenant.
+
+**Steps to set up a Qlik Data Movement gateway in a container**
+
 All the following commands must run using admin or sudo privilege.
-```shell
+
+```bash
 # 1. Run Docker container.
 # Port is important if you want to connect QEM
-docker run --name container_name -d docker_image -p 3552:3552 --expose 3552
+docker run --name qdmg_container -d qdmg_image -p 3552:3552 --expose 3552
 
 # 2. Set the password. Password is important if you want to connect QEM
-docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/bin/agentctl agent set_config -p password"
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl agent set_config -p password"
 
 # 3. Set the tenant. Replace 'tenant_name' with your tenant 
-docker container exec -it container_name su qlik -c su qlik -c "/opt/qlik/gateway/movement/bin/agentctl qcs set_config --tenant_url tenant_name"
+docker container exec -it qdmg_container su qlik -c su qlik -c "/opt/qlik/gateway/movement/bin/agentctl qcs set_config --tenant_url tenant_name"
 
 # 4. Start the service 
-docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 
 # 5. Wait 30seconds or more, then check if the next line show services are [defunct]
-docker container exec -it container_name ps -ef
+docker container exec -it qdmg_container ps -ef
 
 # 6. Get the registration keys and register it on the Data Movement gateway at QTC
-docker container exec -it container_name su -c "/opt/qlik/gateway/movement/bin/agentctl qcs get_registration"
+docker container exec -it qdmg_container su -c "/opt/qlik/gateway/movement/bin/agentctl qcs get_registration"
 
 # 7. After register the keys on QTC, restart the container
-docker container stop container_name 
-docker container start container_name 
+docker container restart qdmg_container 
 
 # 8. Start the Data Movement service
-docker container exec -it container_name  su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+docker container exec -it qdmg_container  su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 
 # 9. Wait 30seconds or more, then check if the next line show services are NOT [defunct]
-docker container exec -it container_name  ps -ef
+docker container exec -it qdmg_container  ps -ef
+
 ```
 
 ## Starting and stopping the Data Movement services
 Every time you want to restart the Data Movement services; you may restart the container and then start the service
 
-```shell
+```bash
 # Restart the container
-docker container stop container_name
-docker container start container_name
+docker container restart qdmg_container
 
 # Start the Data Movement service
-docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
-# Wait 30seconds or more, then check if the next line show services are NOT [defunct]
-docker container exec -it container_name ps -ef
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 ```
+
 <a id="upgrade"></a>
 ## Upgrading Qlik Data Movement
 
 To upgrade Qlik Data Movement, you can use the following steps
 
-```shell
-# Stop and Start the container
-docker container stop container_name
-docker container start container_name
+```bash
+# Restart the container
+docker container restart qdmg_container
 
 # Download and install new Qlik Data Movement gateway version
 # You don´t need to provide the password if it didn´t set up during installation
-docker container exec -it container_name su -c "QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes pass=password yum -y upgrade https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm"
+docker container exec -it qdmg_container su -c "QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes pass=password yum -y upgrade https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm"
 
 # Restart the container
-docker container stop container_name
-docker container start container_name
+docker container restart qdmg_container
 
 # Start the Data Movement service
-docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
-# Wait 30seconds or more, then check if the next line show services are NOT [defunct]
-docker container exec -it container_name ps -ef
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 ```
 
 ## Installing new ODBC drivers
 
-You can install you own ODBC driver version, but unfortunately, the provided [docker image](#docker-image) don´t have Python installed, then you can´t use the Qlik scripts to perform any installation and all things must do using the old fashion way.
+You can install you own ODBC drivers version, and Qlik provided a script to install everything for you
 
-The next steps show to you how to install an IBM DB2 for iSeries ODBC driver.
+Tip: You still can perform installation using the old fashion way.
 
-```shell
-# 1. Copy the IBM DB2 driver to container
-docker cp ./ibm-iaccess-1.1.0.26-1.0.x86_64.rpm container_name:/tmp/
+**MySQL**
+    - Amazon Aurora MySQL
+    - Amazon RDS for MySQL
+    - Google Cloud SQL for MySQL
+    - MariaDB
+    - Microsoft Azure for MySQL
+    - MySQL
+    - Percona Server for MySQL
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install mysql
 
-# 2. Install the driver within container
-docker container exec -it container_name su -c "yum -y install /tmp/ibm-iaccess-1.1.0.26-1.0.x86_64.rpm"
-
-# 3. After installing, restart container and service
-docker container stop container_name
-docker container start container_name
-
-# 4. Start the Data Movement service
-docker container exec -it container_name su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
-# 5. Wait 30seconds or more, then check if the next line show services are NOT [defunct]
-docker container exec -it container_name ps -ef
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 ```
+
+---
+
+
+**PostgreSQL**
+    - Amazon Aurora PostgreSQL
+    - Amazon RDS for PostgreSQL
+    - Microsoft Azure PostgreSQL
+    - PostgreSQL
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install postgres
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+---
+
+**Oracle**
+    - Amazon RDS for Oracle
+    - Oracle
+    - Oracle Cloud
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install oracle
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+---
+
+- **Amazon Redshift**
+
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install sqlserver
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+---
+
+- **Databricks** (Needs yum)
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install databricks
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+---
+
+- **Snowflake** (Needs yum)
+```bash
+# 1. Perform the installation
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install snowflake
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+---
+
+**SQL Server (Log-based & CDC)**
+- Microsoft SQL Server
+- Azure Synapse Analytics
+- Azure SQL Server
+
+```bash
+# 1. Perform the installation
+docker container exec -it gateway /opt/qlik/gateway/movement/drivers/bin/install sqlserver
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+
+- **Fabric** (Needs yum)
+
+```bash
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install fabric
+
+# 2. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```	
+
+- **IBM DB2 for iSeries**
+
+The next steps show how to install an IBM DB2 for iSeries ODBC driver.
+```bash
+# 1. Create db2i installation folder for IBM DB2 driver into container
+docker container exec -it qdmg_container su qlik -c "mkdir -p /opt/qlik/gateway/movement/drivers/db2iseries"
+
+# 2. Copy the IBM DB2 driver to container
+docker cp ./ibm-iaccess-1.1.0.26-1.0.x86_64.rpm qdmg_container:/opt/qlik/gateway/movement/drivers/db2iseries
+
+# 3. Install the driver within container
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install db2iseries
+
+# 4. After installing, restart container and service
+docker container restart qdmg_container
+docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
+```
+
+
