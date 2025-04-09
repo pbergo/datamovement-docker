@@ -1,8 +1,26 @@
 # Qlik Data Movement on Docker
 
+<a id="summary"></a>
+## Summary
+
+- [License Summary](license)
+- [Disclaimer](disclaimer)
+- [Introduction](introduction)
+- [Docker image](dockerimage)
+    - [Pulling Qlik Data Movement gateway docker image](pullimage)
+    - [Build Qlik Data Movement Docker image](buildimage)
+- [Setup Container](setupcontainer)
+- [Starting and stopping the Data Movement services](startservice)
+- [Upgrading Qlik Data Movement](upgrade)
+- [Installing new ODBC drivers](odbcdriver)
+
+<a id="license"></a>
+
 ## License Summary
 
 This project is made available under a modified MIT license. See the [LICENSE](LICENSE) file.
+
+<a id="disclaimer"></a>
 
 ## Disclaimer
 
@@ -11,6 +29,7 @@ This project is made available under a modified MIT license. See the [LICENSE](L
 3. **Qlik Inc.** or **Qlik Support** has no affiliation with this project. The initial version was developed by [Pedro Bergo](https://www.linkedin.com/in/pedro-bergo/) who is currently employed as Qlik Data Integration Senior Implementation Consultant at Qlik Data Professional Services Team.
 
 <a id="introduction"></a>
+
 ## Introduction
 
 This document was created to provide details how to use Qlik Data Movement Gateway on Docker environment. The information here doesn´t intend to cover all aspects of Docker environments, flavours and tools provided by market, like Swarm, Kubernetes or AWS-EKS.
@@ -38,6 +57,8 @@ b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iS
 c. Guest OS: Red Hat Linux 9
 
 Next step is [setup the container](setucontainer).
+
+<a id="buildimage"></a>
 
 ### Build Qlik Data Movement Docker image
 
@@ -114,6 +135,8 @@ docker container exec -it qdmg_container  ps -ef
 
 ```
 
+<a id="startservice"></a>
+
 ## Starting and stopping the Data Movement services
 Every time you want to restart the Data Movement services; you may restart the container and then start the service
 
@@ -144,6 +167,7 @@ docker container restart qdmg_container
 # Start the Data Movement service
 docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 ```
+<a id="odbcdriver"></a>
 
 ## Installing new ODBC drivers
 
