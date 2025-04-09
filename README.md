@@ -106,20 +106,14 @@ docker container exec -it qdmg_container su qlik -c su qlik -c "/opt/qlik/gatewa
 # 4. Start the service 
 docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
 
-# 5. Wait 30seconds or more, then check if the next line show services are [defunct]
-docker container exec -it qdmg_container ps -ef
-
-# 6. Get the registration keys and register it on the Data Movement gateway at QTC
+# 5. Get the registration keys and register it on the Data Movement gateway at QTC
 docker container exec -it qdmg_container su -c "/opt/qlik/gateway/movement/bin/agentctl qcs get_registration"
 
-# 7. After register the keys on QTC, restart the container
+# 6. After register the keys on QTC, restart the container
 docker container restart qdmg_container 
 
-# 8. Start the Data Movement service
+# 7. Start the Data Movement service
 docker container exec -it qdmg_container  su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
-# 9. Wait 30seconds or more, then check if the next line show services are NOT [defunct]
-docker container exec -it qdmg_container  ps -ef
 
 ```
 
