@@ -117,7 +117,7 @@ ADD start_qdmg.sh /opt/qlik/gateway/movement/bin/start_qdmg.sh
 RUN chmod 775 /opt/qlik/gateway/movement/bin/start_qdmg.sh
 
 # Set environment variables -- change with the right tenant url
-ENV QlikCloudTenant="tenant.region.qlikcloud.com"
+ENV QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
 
 # Keep the container up
 ENTRYPOINT /opt/qlik/gateway/movement/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
@@ -141,7 +141,7 @@ All the following commands must run using admin or sudo privilege.
 ```bash
 # 1. Run Docker container.
 # You might to define the tenant url to register it on Docker
-docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="**tenant.region**.qlikcloud.com"
+docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
 
 # 2. Get the registration keys and register it on the Data Movement gateway at QTC
 docker container exec -it gateway cat /opt/qlik/gateway/movement/data/qdmg_regkey.txt
