@@ -2,16 +2,18 @@
 
 ## Summary
 
-- [License Summary](#license-summary)
-- [Disclaimer](#disclaimer)
-- [Introduction](#introduction)
-- [Docker image](#docker-image)
+- [Qlik Data Movement on Docker](#qlik-data-movement-on-docker)
+  - [Summary](#summary)
+  - [License Summary](#license-summary)
+  - [Disclaimer](#disclaimer)
+  - [Introduction](#introduction)
+  - [Docker image](#docker-image)
     - [Pulling Qlik Data Movement gateway docker image](#pulling-qlik-data-movement-gateway-docker-image)
     - [Build Qlik Data Movement Docker image](#build-qlik-data-movement-docker-image)
-- [Setup Container](#setup-container)
-- [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
-- [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
-- [Installing new ODBC drivers](#installing-new-odbc-drivers)
+  - [Setup Container](#setup-container)
+  - [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
+  - [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
+  - [Installing new ODBC drivers](#installing-new-odbc-drivers)
 
 ## License Summary
 
@@ -54,8 +56,45 @@ Next step is [setup the container](#setup-container).
 
 If you want to build your own Docker image, please look the next information, remembering that you might to setup the tenant connection in a running container.
 
+**Starting program start_qdmg.sh**
+
+The following shell script is used to start gateway within a container, but also to generate the key and install ODBC drivers on it.
+
+```bash
+#!/bin/bash
+# Expect four parameters:
+#    1. Tenant URL
+# Create data folder and grant user attunity ownership of it
+
+if [ -z $1 ]; then
+  echo "Usage: start_qdmg.sh <tenant_url>"
+  exit 1
+fi
+
+if [ ! -f "/opt/qlik/gateway/movement/data/qdmg_regkey.txt" ]; then
+        # Setup the tenant url
+        /opt/qlik/gateway/movement/bin/repagent agentctl qcs set_config --tenant_url "$1" >> /dev/null 2>&1
+
+        #Generate the tenant key
+        /opt/qlik/gateway/movement/bin/repagent agentctl qcs get_registration > /opt/qlik/gateway/movement/data/qdmg_regkey.txt 2>&1
+
+        #Install ODBC drivers -- You can install any avail driver
+        /opt/qlik/gateway/movement/drivers/bin/install oracle -a >> /dev/null 2>&1
+        /opt/qlik/gateway/movement/drivers/bin/install postgres -a >> /dev/null 2>&1
+        /opt/qlik/gateway/movement/drivers/bin/install sqlserver -a >> /dev/null 2>&1
+        /opt/qlik/gateway/movement/drivers/bin/install mysql -a >> /dev/null 2>&1
+        /opt/qlik/gateway/movement/drivers/bin/install databricks -a >> /dev/null 2>&1
+        /opt/qlik/gateway/movement/drivers/bin/install snowflake -a >> /dev/null 2>&1
+fi
+# Run Qlik Data Movement Gateway
+su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start" >> /dev/null 2>&1
+```
+
+
 **Dockerfile**
+
 Create a file named 'Dockerfile' container the following lines.
+
 ```Dockerfile
 FROM registry.access.redhat.com/ubi9/ubi-minimal
 
@@ -73,8 +112,15 @@ RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download
 # Remove temp microdnf files
 RUN microdnf clean all
 
+# Set start program
+ADD start_qdmg.sh /opt/qlik/gateway/movement/bin/start_qdmg.sh
+RUN chmod 775 /opt/qlik/gateway/movement/bin/start_qdmg.sh
+
+# Set environment variables -- change with the right tenant url
+ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
+
 # Keep the container up
-ENTRYPOINT ["/bin/sh", "-c", "tail -f /dev/null"]
+ENTRYPOINT /opt/qlik/gateway/movement/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
 ```
 
 **Build the image from the Dockerfile. Needs to be run from the directory that contains the Dockerfile**
@@ -94,27 +140,11 @@ All the following commands must run using admin or sudo privilege.
 
 ```bash
 # 1. Run Docker container.
-# Port is important if you want to connect QEM
-docker run --name qdmg_container -d qdmg_image -p 3552:3552 --expose 3552
+# You might to define the tenant url to register it on Docker
+docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
 
-# 2. Set the password. Password is important if you want to connect QEM
-docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl agent set_config -p password"
-
-# 3. Set the tenant. Replace 'tenant_name' with your tenant 
-docker container exec -it qdmg_container su qlik -c su qlik -c "/opt/qlik/gateway/movement/bin/agentctl qcs set_config --tenant_url tenant_name"
-
-# 4. Start the service 
-docker container exec -it qdmg_container su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
-# 5. Get the registration keys and register it on the Data Movement gateway at QTC
-docker container exec -it qdmg_container su -c "/opt/qlik/gateway/movement/bin/agentctl qcs get_registration"
-
-# 6. After register the keys on QTC, restart the container
-docker container restart qdmg_container 
-
-# 7. Start the Data Movement service
-docker container exec -it qdmg_container  su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start"
-
+# 2. Get the registration keys and register it on the Data Movement gateway at QTC
+docker container exec -it gateway cat /opt/qlik/gateway/movement/data/qdmg_regkey.txt
 ```
 
 ## Starting and stopping the Data Movement services

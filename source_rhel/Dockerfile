@@ -19,5 +19,12 @@ RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download
 # Remove temp microdnf files
 RUN microdnf clean all
 
+# Set start program
+ADD start_qdmg.sh /opt/qlik/gateway/movement/bin/start_qdmg.sh
+RUN chmod 775 /opt/qlik/gateway/movement/bin/start_qdmg.sh
+
+# Set environment variables -- change with the right tenant url
+ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
+
 # Keep the container up
-ENTRYPOINT ["/bin/sh", "-c", "tail -f /dev/null"]
+ENTRYPOINT /opt/qlik/gateway/movement/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
