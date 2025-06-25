@@ -71,23 +71,41 @@ if [ -z $1 ]; then
   exit 1
 fi
 
+# Install Qlik Data Movement
+if [ ! -d "/opt/qlik" ]; then
+    QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
+fi
+
+# Set tenant_url and get registration key
 if [ ! -f "/opt/qlik/gateway/movement/data/qdmg_regkey.txt" ]; then
-        # Setup the tenant url
         /opt/qlik/gateway/movement/bin/repagent agentctl qcs set_config --tenant_url "$1" >> /dev/null 2>&1
-
-        #Generate the tenant key
         /opt/qlik/gateway/movement/bin/repagent agentctl qcs get_registration > /opt/qlik/gateway/movement/data/qdmg_regkey.txt 2>&1
+fi
 
-        #Install ODBC drivers -- You can install any avail driver
+# Install ODBC drivers
+# comment installation lines you don´t need
+if [ ! -d "/opt/qlik/gateway/movement/drivers/oracle" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install oracle -a >> /dev/null 2>&1
+fi
+if [ ! -d "/opt/qlik/gateway/movement/drivers/postgres" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install postgres -a >> /dev/null 2>&1
+fi
+if [ ! -d "/opt/qlik/gateway/movement/drivers/sqlserver" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install sqlserver -a >> /dev/null 2>&1
+fi
+if [ ! -d "/opt/qlik/gateway/movement/drivers/mysql" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install mysql -a >> /dev/null 2>&1
+fi
+if [ ! -d "/opt/qlik/gateway/movement/drivers/databricks" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install databricks -a >> /dev/null 2>&1
+fi
+if [ ! -d "/opt/qlik/gateway/movement/drivers/snowflake" ]; then
         /opt/qlik/gateway/movement/drivers/bin/install snowflake -a >> /dev/null 2>&1
 fi
+
 # Run Qlik Data Movement Gateway
 su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start" >> /dev/null 2>&1
+
 ```
 
 
@@ -106,21 +124,16 @@ RUN microdnf install -y util-linux python3 dnf sudo tar yum procps
 RUN echo -e '#!/bin/bash\necho "Systemctl called with $@"' > /usr/bin/systemctl
 RUN chmod +x /usr/bin/systemctl
 
-# Download and install Data Movement Gateway
-RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
-
 # Remove temp microdnf files
 RUN microdnf clean all
 
-# Set start program
-ADD start_qdmg.sh /opt/qlik/gateway/movement/bin/start_qdmg.sh
-RUN chmod 775 /opt/qlik/gateway/movement/bin/start_qdmg.sh
-
-# Set environment variables -- change with the right tenant url
-ENV QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
+# Set environment
+ADD start_qdmg.sh /usr/bin/start_qdmg.sh
+RUN chmod 775 /usr/bin/start_qdmg.sh
+ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
 
 # Keep the container up
-ENTRYPOINT /opt/qlik/gateway/movement/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
+ENTRYPOINT /usr/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
 ```
 
 **Build the image from the Dockerfile. Needs to be run from the directory that contains the Dockerfile**
@@ -144,7 +157,7 @@ All the following commands must run using admin or sudo privilege.
 docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
 
 # 2. Get the registration keys and register it on the Data Movement gateway at QTC
-docker container exec -it gateway cat /opt/qlik/gateway/movement/data/qdmg_regkey.txt
+docker container exec -it qdmg_container cat /opt/qlik/gateway/movement/data/qdmg_regkey.txt
 ```
 
 ## Starting and stopping the Data Movement services
@@ -269,7 +282,7 @@ docker container restart qdmg_container
 
 ```bash
 # 1. Perform the installation
-docker container exec -it gateway /opt/qlik/gateway/movement/drivers/bin/install sqlserver
+docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/install sqlserver
 
 # 2. After installing, restart container and service
 docker container restart qdmg_container
