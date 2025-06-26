@@ -9,11 +9,12 @@
   - [Introduction](#introduction)
   - [Docker image](#docker-image)
     - [Pulling Qlik Data Movement gateway docker image](#pulling-qlik-data-movement-gateway-docker-image)
-    - [Build Qlik Data Movement Docker image](#build-qlik-data-movement-docker-image)
-  - [Setup Container](#setup-container)
-  - [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
-  - [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
-  - [Installing new ODBC drivers](#installing-new-odbc-drivers)
+    - [Building your own image](#building-your-own-image)
+  - [Run the container](#run-the-container)
+  - [Useful commands](#useful-commands)
+      - [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
+      - [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
+      - [Installing new ODBC drivers](#installing-new-odbc-drivers)
 
 ## License Summary
 
@@ -31,11 +32,22 @@ This document was created to provide details how to use Qlik Data Movement Gatew
 
 The recommended approach for PS consultants during the project implementation is provide to customers basic information and artifacts (scripts and configuration files) to work with Docker, then it can be adapted to its own environments.
 
+---
+
 ## Docker image
 
 To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image or you can build your own image. 
 
 For both approaches you might to link the Qlik Data Movement gateway with your tenant before put any task to run.
+
+As the first step, you might to choose between two approaches:
+- [Using existing docker image, pre-built from PS consultants](#pulling-qlik-data-movement-gateway-docker-image)
+- [Building your own image](#building-your-own-image)
+
+After executing one of the approaches, you can [Run the container](#run-the-container).
+
+Finally, check the [other usefull commands](#useful-commands).
+
 
 ### Pulling Qlik Data Movement gateway docker image
 All the following commands must run using admin or sudo privilege.
@@ -50,15 +62,23 @@ a. Data Movement gateway installed version 2024.11.30
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iSeries
 c. Guest OS: Red Hat Linux 9
 
-Next step is [setup the container](#setup-container).
+Next step is [Run the container](#run-the-container).
 
-### Build Qlik Data Movement Docker image
+
+### Building your own image
 
 If you want to build your own Docker image, please look the next information, remembering that you might to setup the tenant connection in a running container.
 
-**Starting program start_qdmg.sh**
+**The starting script**
 
-The following shell script is used to start gateway within a container, but also to generate the key and install ODBC drivers on it.
+The `start_qdmg.sh` shell script execute the following procedures:
+- Install Qlik Data Movement software if is not installed
+- Setup the tenant url
+- Generate the keys to update gateway at Qlik tenant
+- Install ODBC drivers
+- Start the gateway services
+
+To build your own image, create the start_qdmg.sh script with the following information.
 
 ```bash
 #!/bin/bash
@@ -111,7 +131,7 @@ su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start" >> /dev/null 
 
 **Dockerfile**
 
-Create a file named 'Dockerfile' container the following lines.
+Create a file named `Dockerfile` container the following lines.
 
 ```Dockerfile
 FROM registry.access.redhat.com/ubi9/ubi-minimal
@@ -133,44 +153,85 @@ RUN chmod 775 /usr/bin/start_qdmg.sh
 ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
 
 # Keep the container up
-ENTRYPOINT /usr/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
+ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null"]
 ```
 
-**Build the image from the Dockerfile. Needs to be run from the directory that contains the Dockerfile**
+**Build the image from the Dockerfile**
+
+Needs to be run from the directory that contains the Dockerfile**
+
 ```bash
 docker build -t qdmg_image ./
 ```
 
-Next step is [setup the container](#setup-container).
+Next step is [Run the container](#run-the-container).
 
-## Setup Container
+
+## Run the container
 
 Prior to use Qlik Data Movement gateway, you must setup the container, linking it with your tenant.
 
-**Steps to set up a Qlik Data Movement gateway in a container**
-
 All the following commands must run using admin or sudo privilege.
 
+**Create an external folder to store gateway information**
 ```bash
-# 1. Run Docker container.
-# You might to define the tenant url to register it on Docker
-docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com"
+# Create a storage folder 
+mkdir -p /qlikfolder/qdmg_ikea
+```
 
-# 2. Get the registration keys and register it on the Data Movement gateway at QTC
+**Launch the container**
+
+```bash
+# 1. Create a storage folder 
+mkdir -p /qlikfolder/qdmg
+
+# 2. Run Docker container.
+# Setup the tenant url to launch the container
+# Mount the storage folder
+docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" --mount type=bind,source=/qlikfolder/qdmg/,target=/opt
+```
+
+
+**Get the registration key**
+
+After launching the container, get the registration key executing the following command.
+
+```bash
 docker container exec -it qdmg_container cat /opt/qlik/gateway/movement/data/qdmg_regkey.txt
 ```
 
-## Starting and stopping the Data Movement services
+Ensure you copy all information enclosed by the curly brackets {} !
 
-Using the start_qdmg.sh script, every time you restart the container, it will check if there are any key generated, the start the service automatically.
+**Register the gateway on Qlik Cloud**
+
+Make sure at least one Data Space exists before following the steps to register the Gateway. Spaces can be created in Administration>Spaces in the Tenant. Whoever creates a Space owns it, but access can be granted to others.
+
+Register the gateway
+1. Navigate to Administration > Data gateways
+2. Click Create
+3. Give your gateway a Name and Description
+4. Gateway Type: Data Movement
+5. Associated Space: Use a precreated Data Space
+6. Key: Paste the Registration Key in the Key field
+
+Wait for a few minutes and refresh the Data gateways page. You should see your gateway with Connected status.
+
+**Now the Qlik Data Movement gateway is ready to be used!**
+
+---
+
+## Useful commands
+
+#### Starting and stopping the Data Movement services
+
+The `start_qdmg.sh` start the gateway services automatically every time container is started. To restart the gatway services, the recommended action is restarting the container.
 
 ```bash
 # Restart the container
 docker container restart qdmg_container
 ```
 
-<a id="upgrade"></a>
-## Upgrading Qlik Data Movement
+#### Upgrading Qlik Data Movement
 
 To upgrade Qlik Data Movement, you can use the following steps
 
@@ -182,7 +243,8 @@ docker container exec -it qdmg_container su -c "QLIK_CUSTOMER_AGREEMENT_ACCEPT=y
 # Restart the container
 docker container restart qdmg_container
 ```
-## Installing new ODBC drivers
+
+#### Installing new ODBC drivers
 
 You can install you own ODBC drivers version, and Qlik provided a script to install everything for you
 
@@ -205,8 +267,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 docker container restart qdmg_container
 ```
 
----
-
 
 **PostgreSQL**
     - Amazon Aurora PostgreSQL
@@ -222,8 +282,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 docker container restart qdmg_container
 ```
 
----
-
 **Oracle**
     - Amazon RDS for Oracle
     - Oracle
@@ -237,8 +295,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 docker container restart qdmg_container
 ```
 
----
-
 **Amazon Redshift**
 
 ```bash
@@ -248,8 +304,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 # 2. After installing, restart container
 docker container restart qdmg_container
 ```
-
----
 
 **Databricks**
 
@@ -261,8 +315,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 docker container restart qdmg_container
 ```
 
----
-
 **Snowflake**
 
 ```bash
@@ -272,8 +324,6 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 # 2. After installing, restart container and service
 docker container restart qdmg_container
 ```
-
----
 
 **SQL Server (Log-based & CDC)**
 - Microsoft SQL Server
