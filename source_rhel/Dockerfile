@@ -8,23 +8,15 @@ RUN microdnf install -y util-linux python3 dnf sudo tar yum procps
 RUN echo -e '#!/bin/bash\necho "Systemctl called with $@"' > /usr/bin/systemctl
 RUN chmod +x /usr/bin/systemctl
 
-# Download and install Data Movement Gateway
-RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
-
-# Or copy from local folder and install
-#COPY ./qlik-data-gateway-data-movement.rpm /tmp/qlik-data-gateway-data-movement.rpm
-#WORKDIR /tmp/
-#RUN QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh qlik-data-gateway-data-movement.rpm
-
 # Remove temp microdnf files
 RUN microdnf clean all
 
-# Set start program
-ADD start_qdmg.sh /opt/qlik/gateway/movement/bin/start_qdmg.sh
-RUN chmod 775 /opt/qlik/gateway/movement/bin/start_qdmg.sh
-
-# Set environment variables -- change with the right tenant url
+# Set environment
+ADD start_qdmg.sh /usr/bin/start_qdmg.sh
+RUN chmod 775 /usr/bin/start_qdmg.sh
 ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
+ENV QlikUpdateGateway="yes"
+ENV QlikUpdateODBC="all"
 
 # Keep the container up
-ENTRYPOINT /opt/qlik/gateway/movement/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null
+ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh; tail -f /dev/null"]

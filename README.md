@@ -14,6 +14,7 @@
   - [Useful commands](#useful-commands)
       - [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
       - [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
+      - [Checking Docker logs](#checking-docker-logs)
       - [Installing new ODBC drivers](#installing-new-odbc-drivers)
 
 ## License Summary
@@ -50,6 +51,7 @@ Finally, check the [other usefull commands](#useful-commands).
 
 
 ### Pulling Qlik Data Movement gateway docker image
+
 All the following commands must run using admin or sudo privilege.
 
 ```bash
@@ -58,7 +60,7 @@ docker pull pedrobergo/qlikdatamovement:latest
 ```
 
 This docker image contains:
-a. Data Movement gateway installed version 2024.11.30
+a. Data Movement gateway installed version 2024.11.54
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks and DB2 for iSeries
 c. Guest OS: Red Hat Linux 9
 
@@ -74,58 +76,81 @@ If you want to build your own Docker image, please look the next information, re
 The `start_qdmg.sh` shell script execute the following procedures:
 - Install Qlik Data Movement software if is not installed
 - Setup the tenant url
-- Generate the keys to update gateway at Qlik tenant
+- Generate the keys to create gateway at Qlik tenant
 - Install ODBC drivers
 - Start the gateway services
 
+The run the scripts it needs three environment variables:
+
 To build your own image, create the start_qdmg.sh script with the following information.
+- Tenant URL ($QlikCloudTenant)
+- Update QDMG ($QlikUpdateGateway)
+- UpdateODBC ($QlikUpdateODBC)
+
+All of these variables are defined at Dockerfile.
 
 ```bash
-#!/bin/bash
-# Expect four parameters:
-#    1. Tenant URL
-# Create data folder and grant user attunity ownership of it
+function update_qdmg() {
+        echo -e "###############################################################################################"
+        echo -e "Upgrading Qlik Data Movement gateway..."
+        rpm -U https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm 2>&1
+        if [ "$?" -ne 0 ]; then
+                echo -e "Error upgrading Qlik Data Movement gateway !"
+                return 1
+        fi
+        return 0
+}
 
-if [ -z $1 ]; then
-  echo "Usage: start_qdmg.sh <tenant_url>"
-  exit 1
-fi
+function update_odbc() {
+        if [ "$updateodbc" = "all" ]; then
+                #Update all
+                update_driver oracle
+                update_driver postgres
+                update_driver sqlserver
+                update_driver mysql
+                update_driver databricks
+                update_driver snowflake
+        else
+                #Update single driver
+                update_driver "$updateodbc"
+        fi
+        return 0
+}
 
-# Install Qlik Data Movement
+# Set the parameters from env variables
+tenanturl="$QlikCloudTenant"
+updategateway="$QlikUpdateGateway"
+updateodbc="$QlikUpdateODBC"
+
+# Showing variables
+echo "#############################################################################################################"
+echo "start_dmg.sh - a command line to install, update and start Qlik Data Movement services within a container"
+echo "Datetime $(date +'%Y-%m-%d %H:%M:%S')"
+echo "Parameters:"
+echo "  -Tenant URL = $tenanturl"
+echo "  -Update gateway = $updategateway"
+echo "  -Update odbc drivers = $updateodbc"
+echo "#############################################################################################################"
+
+# Check if QDMG is already installed
 if [ ! -d "/opt/qlik" ]; then
-    QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -ivh https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm
-fi
-
-# Set tenant_url and get registration key
-if [ ! -f "/opt/qlik/gateway/movement/data/qdmg_regkey.txt" ]; then
-        /opt/qlik/gateway/movement/bin/repagent agentctl qcs set_config --tenant_url "$1" >> /dev/null 2>&1
-        /opt/qlik/gateway/movement/bin/repagent agentctl qcs get_registration > /opt/qlik/gateway/movement/data/qdmg_regkey.txt 2>&1
-fi
-
-# Install ODBC drivers
-# comment installation lines you don´t need
-if [ ! -d "/opt/qlik/gateway/movement/drivers/oracle" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install oracle -a >> /dev/null 2>&1
-fi
-if [ ! -d "/opt/qlik/gateway/movement/drivers/postgres" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install postgres -a >> /dev/null 2>&1
-fi
-if [ ! -d "/opt/qlik/gateway/movement/drivers/sqlserver" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install sqlserver -a >> /dev/null 2>&1
-fi
-if [ ! -d "/opt/qlik/gateway/movement/drivers/mysql" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install mysql -a >> /dev/null 2>&1
-fi
-if [ ! -d "/opt/qlik/gateway/movement/drivers/databricks" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install databricks -a >> /dev/null 2>&1
-fi
-if [ ! -d "/opt/qlik/gateway/movement/drivers/snowflake" ]; then
-        /opt/qlik/gateway/movement/drivers/bin/install snowflake -a >> /dev/null 2>&1
+        install_qdmg
+else
+        # If QDMG is already installed then check the parameters
+        if [[ -n "$updategateway" && "$updategateway" == "yes" ]]; then
+                update_qdmg
+        fi
+        if [[ -n "$updateodbc" && "$updateodbc" != "no" ]]; then
+                echo "Updating drivers $updateodbc..."
+                update_odbc
+        fi
 fi
 
 # Run Qlik Data Movement Gateway
+echo -e "\nStarting gateway service $(date +'%Y-%m-%d %H:%M:%S')..."
 su qlik -c "/opt/qlik/gateway/movement/bin/agentctl service start" >> /dev/null 2>&1
-
+ps -ef
+echo -e "#############################################################################################################\n"
 ```
 
 
@@ -151,9 +176,11 @@ RUN microdnf clean all
 ADD start_qdmg.sh /usr/bin/start_qdmg.sh
 RUN chmod 775 /usr/bin/start_qdmg.sh
 ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
+ENV QlikUpdateGateway="yes"
+ENV QlikUpdateODBC="all"
 
 # Keep the container up
-ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh ${QlikCloudTenant}; tail -f /dev/null"]
+ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh; tail -f /dev/null"]
 ```
 
 **Build the image from the Dockerfile**
@@ -233,7 +260,17 @@ docker container restart qdmg_container
 
 #### Upgrading Qlik Data Movement
 
-To upgrade Qlik Data Movement, you can use the following steps
+To upgrade Qlik Data Movement, choose between next two options.
+
+Option 1: 
+
+- The starting script upgrade Qlik Data Movement gateway automatically when the QlikUpdateGateway variable is 'yes'.
+- You only need to [restart the container](#starting-and-stopping-the-data-movement-services)
+
+
+Option 2:
+
+- You still can upgrade it manually, with following commands
 
 ```bash
 # Download and install new Qlik Data Movement gateway version
@@ -242,6 +279,12 @@ docker container exec -it qdmg_container su -c "QLIK_CUSTOMER_AGREEMENT_ACCEPT=y
 
 # Restart the container
 docker container restart qdmg_container
+```
+
+#### Checking Docker logs
+
+```bash
+docker container logs -f qdmg_container
 ```
 
 #### Installing new ODBC drivers
