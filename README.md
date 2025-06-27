@@ -74,20 +74,17 @@ If you want to build your own Docker image, please look the next information, re
 **The starting script**
 
 The `start_qdmg.sh` shell script execute the following procedures:
-- Install Qlik Data Movement software if is not installed
+- Install or Upgrade Qlik Data Movement software
 - Setup the tenant url
 - Generate the keys to create gateway at Qlik tenant
-- Install ODBC drivers
+- Install or Upgrade ODBC drivers
 - Start the gateway services
 
-The run the scripts it needs three environment variables:
-
-To build your own image, create the start_qdmg.sh script with the following information.
+To run the script it needs three environment variables, all defined at Dockerfile:
 - Tenant URL ($QlikCloudTenant)
 - Update QDMG ($QlikUpdateGateway)
 - UpdateODBC ($QlikUpdateODBC)
 
-All of these variables are defined at Dockerfile.
 
 ```bash
 function update_qdmg() {
@@ -203,7 +200,7 @@ All the following commands must run using admin or sudo privilege.
 **Create an external folder to store gateway information**
 ```bash
 # Create a storage folder 
-mkdir -p /qlikfolder/qdmg_ikea
+mkdir -p /qlikfolder/qdmg_container
 ```
 
 **Launch the container**
