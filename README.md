@@ -9,13 +9,14 @@
 	- [Introduction](#introduction)
 	- [Docker image](#docker-image)
 		- [Pulling Qlik Data Movement gateway docker image](#pulling-qlik-data-movement-gateway-docker-image)
+		- [Installing Docker Desktop](#installing-docker-desktop)
 		- [Building your own image](#building-your-own-image)
-	- [Run the container](#run-the-container)
+	- [Running the container](#running-the-container)
 	- [Useful commands](#useful-commands)
-			- [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
-			- [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
-			- [Checking Docker logs](#checking-docker-logs)
-			- [Installing new ODBC drivers](#installing-new-odbc-drivers)
+		- [Starting and stopping the Data Movement services](#starting-and-stopping-the-data-movement-services)
+		- [Upgrading Qlik Data Movement](#upgrading-qlik-data-movement)
+		- [Checking Docker logs](#checking-docker-logs)
+		- [Installing new ODBC drivers](#installing-new-odbc-drivers)
 
 ## License Summary
 
@@ -33,11 +34,15 @@ This document was created to provide details how to use Qlik Data Movement Gatew
 
 The recommended approach for PS consultants during the project implementation is provide to customers basic information and artifacts (scripts and configuration files) to work with Docker, then it can be adapted to its own environments.
 
----
+
+
+
 
 ## Docker image
 
 To accelerate the adoption of Qlik Data Movement in a containerized environement, you can use an existing docker image or you can build your own image. 
+
+*If you don´t have a Docker environment, the best way to start is [Installing Docker Desktop](#installing-docker-desktop)*
 
 For both approaches you might to link the Qlik Data Movement gateway with your tenant before put any task to run.
 
@@ -45,9 +50,9 @@ As the first step, you might to choose between two approaches:
 - [Using existing docker image, pre-built from PS consultants](#pulling-qlik-data-movement-gateway-docker-image)
 - [Building your own image](#building-your-own-image)
 
-After executing one of the approaches, you can [Run the container](#run-the-container).
+After executing one of the approaches, you can [Run the container](#running-the-container).
 
-Finally, check the [other usefull commands](#useful-commands).
+Finally, check the [other usefull commands](#useful-commands), but you can go back to [Summary](#summary).
 
 
 ### Pulling Qlik Data Movement gateway docker image
@@ -65,7 +70,35 @@ Every start / restart of a gateway container will perform installation or updati
 a. Recently Data Movement gateway, currently is 2024.11.54
 b. ODBC Drivers: Oracle, SQL Server, MySQL, Snowflake, Databricks, DB2 for iSeries and Knowledge Marts libraries
 
-Next step is [Run the container](#run-the-container).
+Next step is [Running the container](#running-the-container), but you can go back to [Summary](#summary).
+
+
+### Installing Docker Desktop
+
+To install Docker Desktop, download the appropriate installer for Windows (Intel/AMD or ARM), Mac (Apple Silicon or Intel), or Linux from the Docker website. Run the installer, follow the on-screen instructions, and ensure WSL 2 (Windows) or virtualization (Mac/Linux) is enabled for optimal performance. 
+
+**Windows Installation Steps**
+1. Download: Get the [Docker Desktop Installer](https://docs.docker.com/desktop/setup/install/windows-install/) from [Docker Docs](https://docs.docker.com/desktop/setup/install/windows-install/).
+2. Install: Run the installer as an administrator.
+3. Configure: Ensure "Use WSL 2 instead of Hyper-V" is checked for better performance.
+4. Finish: Follow the wizard to complete the installation and restart your computer. 
+
+**macOS Installation Steps**
+1. Download: Get the installer for your chip (Apple silicon or Intel) from [Docker Docs](https://docs.docker.com/desktop/setup/install/mac-install/).
+2. Install: Open the .dmg file and drag Docker to your Applications folder.
+3. Run: Open Docker from your Applications folder. 
+
+**Linux Installation Steps**
+1. Download: Follow the installation instruction for your distribution ([Ubuntu](https://docs.docker.com/desktop/setup/install/linux/ubuntu/), [Debian](https://docs.docker.com/desktop/setup/install/linux/debian/), [Fedora](https://docs.docker.com/desktop/setup/install/linux/fedora/), [Arch](https://docs.docker.com/desktop/setup/install/linux/arch/), [RHEL](https://docs.docker.com/desktop/setup/install/linux/rhel/)) from [Docker Docs](https://docs.docker.com/desktop/setup/install/linux/).
+2. Install: Run the installer file and drag Docker to your Applications folder.
+3. Run: Open Docker from your Applications folder. 
+
+**Key Requirements**
+- Windows: 64-bit Windows 10/11, WSL 2 backend enabled.
+- Mac: macOS 10.13 or higher.
+- Linux: 64-bit kernel, KVM support, and 4GB+ RAM. 
+
+For more details, you can visit the [Docker Desktop documentation](https://docs.docker.com/desktop/), but you can go back to [Summary](#summary). 
 
 
 ### Building your own image
@@ -263,10 +296,12 @@ Needs to be run from the directory that contains the Dockerfile**
 docker build -t qdmg_image ./
 ```
 
-Next step is [Run the container](#run-the-container).
+Next step is [Running the container](#running-the-container), but you can go back to [Summary](#summary).
 
 
-## Run the container
+
+
+## Running the container
 
 Prior to use Qlik Data Movement gateway, you must setup the container, linking it with your tenant.
 
@@ -274,28 +309,37 @@ All the following commands must run using admin or sudo privilege.
 
 **Create an external folder to store gateway information**
 ```bash
-# Create a storage folder 
-mkdir -p /qlikfolder/qdmg_container
-```
-
-**Launch the container**
-
-```bash
 # 1. Create a storage folder 
+-- Linux
 mkdir -p /qlikfolder/qdmg
 
+-- Windows
+mkdir c:\qlikfolder\qdmg
+```
+
+**Launching the container**
+
+```bash
 # 2. Run Docker container.
 # Setup the tenant url to launch the container
 # Mount the storage folder
-docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" --mount type=bind,source=/qlikfolder/qdmg/,target=/opt
+-- Linux
+docker run --name qdmg_container -d -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" --mount type=bind,source=/qlikfolder/qdmg/,target=/opt pedrobergo/qlikdatamovement
+
+-- Windows
+docker run --name qdmg_container -d -e QlikCloudTenant="pbergo-qtc.us.qlikcloud.com" --mount type=bind,source="c:/qlikfolder/qdmg",target="/opt" pedrobergo/qlikdatamovement
 ```
 
 Notes:
-- if you don´t want to updating the update the driver every start/stop container, please setup the variable QlikUpdateGateway="no"
-- if you don´t want to updating all ODBC drivers, please setup the variable QlikUpdateODBC="none"
+- if you don´t want updating the driver every start/stop container, please setup the variable QlikUpdateGateway="no"
+- if you don´t want updating all ODBC drivers, please setup the variable QlikUpdateODBC="none"
 
 ```bash
-docker run --name qdmg_container -d qdmg_image -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no" --mount type=bind,source=/qlikfolder/qdmg/,target=/opt
+-- Linux
+docker run --name qdmg_container -d -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no"  --mount type=bind,source=/qlikfolder/qdmg/,target=/opt pedrobergo/qlikdatamovement
+
+-- Windows
+docker run --name qdmg_container -d -e QlikCloudTenant="pbergo-qtc.us.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no" --mount type=bind,source="c:/qlikfolder/qdmg",target="/opt" pedrobergo/qlikdatamovement
 ```
 
 **Get the registration key**
@@ -322,7 +366,7 @@ Register the gateway
 
 Wait for a few minutes and refresh the Data gateways page. You should see your gateway with Connected status.
 
-**Now the Qlik Data Movement gateway is ready to be used!**
+**Now the Qlik Data Movement gateway is ready to be used** but you can go back to [Summary](#summary).
 
 ---
 
@@ -498,3 +542,4 @@ docker container exec -it qdmg_container /opt/qlik/gateway/movement/drivers/bin/
 docker container restart qdmg_container
 ```
 
+Go back to [Summary](#summary).
