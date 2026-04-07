@@ -122,7 +122,7 @@ To run the script it needs three environment variables, all defined at Dockerfil
 
 ```bash
 #!/bin/bash
-# Copyright - 2025
+# Copyright - 2025, 2026
 # Author: Pedro Bergo - Qlik Professional Team
 # start_dmg.sh - a command line to install, update and start Qlik Data Movement services within a container
 # Expect 3 parameters
@@ -130,7 +130,7 @@ To run the script it needs three environment variables, all defined at Dockerfil
 #    2. Update QDMG   - $2 
 #    3. Update ODBC   - $3 
 #    4. QDMG Admin Pwd- $4
-# Create data folder and grant user attunity ownership of it
+# Create data folder and grant user qlik ownership of it
 
 function install_odbc() {
 	# Check if the driver is already installed
@@ -174,7 +174,8 @@ function install_qdmg() {
 	install_odbc mysql
 	install_odbc databricks
 	install_odbc snowflake
-	install_odbc ai-local-agent
+    # PB 07-APR-26 - Removed ai-local-agent installation until solving issue
+    #install_odbc ai-local-agent
 
 	# To install DB2i, it might have rpm file at /tmp
 	if [ -f "/tmp/ibm-iaccess-1.1.0.26-1.0.x86_64.rpm" ]; then
@@ -193,7 +194,7 @@ function install_qdmg() {
 
 function update_qdmg() {
 	echo -e "Upgrading Qlik Data Movement gateway..."
-	rpm -U https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm 2>&1
+	QLIK_CUSTOMER_AGREEMENT_ACCEPT=yes rpm -U https://github.com/qlik-download/saas-download-links/releases/download/qcs/qlik-data-gateway-data-movement.rpm 2>&1
 	if [ "$?" -ne 0 ]; then
 		echo -e "Error upgrading Qlik Data Movement gateway !"
 		return 1
@@ -210,11 +211,22 @@ function update_odbc() {
 		update_driver mysql
 		update_driver databricks
 		update_driver snowflake
-		update_driver ai-local-agent
+    	# PB 07-APR-26 - Removed ai-local-agent installation until solving issue
+		#update_driver ai-local-agent
 	else
 		#Update single driver
 		update_driver "$updateodbc"
 	fi
+	return 0
+}
+
+# PB 07-Apr-2026 - Adding Qlik Pulic Key
+function install_qlik_public_key() {
+	echo -e "Installing Qlik public key..."
+	cd /tmp
+	rpm -q gpg-pubkey --qf '%{version}-%{release} %{summary}\n' | sed '/qlik.com/!d;s/ .*$//' | xargs -n 1 -I {} sudo rpm -e gpg-pubkey-{}
+	curl https://qlikcloud.com/.well-known/qlik-codesign-public-keys.asc > qlik-codesign-public-keys.asc
+	rpm --import qlik-codesign-public-keys.asc
 	return 0
 }
 
@@ -236,6 +248,15 @@ if [ ! -z "$adminpwd" ]; then
 	echo "  -QDMG Admin PWD = *******"
 fi
 echo "#############################################################################################################"
+
+# PB 07-Apr-2026 - Adding Qlik Pulic Key
+# Check if the Qlik GPG key is in the RPM databased
+if rpm -q gpg-pubkey --qf '%{summary}\n' | grep -iq "qlik"; then
+    echo "The Qlik public key is already installed, skipping installation."
+else
+    echo "The Qlik public key is NOT installed, installing it now."
+    install_qlik_public_key
+fi
 
 # Check if QDMG is already installed
 if [ ! -d "/opt/qlik" ]; then
@@ -268,7 +289,7 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal
 
 # Install required packages, mainly for installing drivers
 RUN microdnf -y update
-RUN microdnf install -y util-linux python3 dnf sudo tar yum procps
+RUN microdnf install -y util-linux python3 dnf sudo tar yum procps 
 
 # Fake systemctl so the installer can run
 RUN echo -e '#!/bin/bash\necho "Systemctl called with $@"' > /usr/bin/systemctl
@@ -280,12 +301,14 @@ RUN microdnf clean all
 # Set environment
 ADD start_qdmg.sh /usr/bin/start_qdmg.sh
 RUN chmod 775 /usr/bin/start_qdmg.sh
-ENV QlikCloudTenant="pbergo-qtc.us.qlikcloud.com"
+ENV QlikTenant="pbergo-qtc.us.qlikcloud.com"
 ENV QlikUpdateGateway="yes"
 ENV QlikUpdateODBC="all"
+ENV QlikAdminPwd=""
 
 # Keep the container up
-ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh; tail -f /dev/null"]
+ENTRYPOINT ["/bin/sh","-c","/usr/bin/start_qdmg.sh ${QlikTenant} ${QlikUpdateGateway} ${QlikUpdateODBC} ${QlikAdminPwd}; tail -f /dev/null"]
+
 ```
 
 **Build the image from the Dockerfile**
@@ -339,7 +362,7 @@ Notes:
 docker run --name qdmg_container -d -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no"  --mount type=bind,source=/qlikfolder/qdmg/,target=/opt pedrobergo/qlikdatamovement
 
 -- Windows
-docker run --name qdmg_container -d -e QlikCloudTenant="pbergo-qtc.us.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no" --mount type=bind,source="c:/qlikfolder/qdmg",target="/opt" pedrobergo/qlikdatamovement
+docker run --name qdmg_container -d -e QlikCloudTenant="<tenant>.<region>.qlikcloud.com" -e QlikUpdateGateway="no" -e QlikUpdateODBC="no" --mount type=bind,source="c:/qlikfolder/qdmg",target="/opt" pedrobergo/qlikdatamovement
 ```
 
 **Get the registration key**
